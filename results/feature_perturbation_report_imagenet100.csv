@@ -1,0 +1,6 @@
+Perturbation_Location,Noise_Dev,Clean_Test_Accuracy,Corrupted_Test_Accuracy
+baseline (no noise),0.2,15.26,15.14
+early,0.2,14.96,14.76
+middle,0.2,15.62,15.00
+late,0.2,15.48,15.32
+all,0.2,14.48,14.58

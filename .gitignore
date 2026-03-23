@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch
+*.pth
+*.pt
+*.ckpt
+
+# Datasets
+data/
+*.zip
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+
+# Results / Logs (optional: uncomment to ignore results)
+# results/
+*.log
+
+# LaTeX build files
+*.aux
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk

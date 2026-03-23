@@ -1,0 +1,11 @@
+Model,Training_Regime,Clean_Test_Acc,Corrupted_Test_Acc
+VGG,Clean,87.38,39.79
+RESNET,Clean,91.34,78.07
+CONVNEXT,Clean,89.69,42.81
+VIT,Clean,59.24,53.38
+MLP,Clean Val (Exp A),87.43,86.19
+MLP,Corrupt Val (Exp B: mlp_fmnist_exp_b_corrupt_gaussian_noise_sev2.pth),87.43,86.23
+MLP,Multi-Corrupt Val (Exp C: mlp_fmnist_exp_c_optimal_corrupt_10.pth),87.43,86.17
+MLP,Multi-Corrupt Val (Exp C: mlp_fmnist_exp_c_optimal_corrupt_1.pth),82.26,81.24
+MLP,Multi-Corrupt Val (Exp C: mlp_fmnist_exp_c_optimal_corrupt_5.pth),86.79,85.89
+MLP,Multi-Corrupt Val (Exp C: mlp_fmnist_exp_c_optimal_corrupt_15.pth),87.43,86.25
