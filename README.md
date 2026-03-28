@@ -1,36 +1,66 @@
-# Deep Learning (DSE316/616) Assignment-2: Analysis of Network Robustness
+# Analysis of Network Robustness, Validation Optimization, and Feature Perturbation
 
-## 📖 Overview
-Deep learning models typically perform well on clean datasets but often struggle with out-of-distribution (OOD) shifts or corrupted images. This project evaluates different neural network architectures on standard datasets under varied image corruptions, examining how introducing perturbations into the validation set or internal network layers impacts classification accuracy, decision boundaries, and topological feature representations.
+This project explores the robustness of various deep learning network architectures—including Convolutional Neural Networks (CNNs) and Vision Transformers (ViTs)—under explicit out-of-distribution (OOD) dataset shifts and image corruptions. 
 
-## 🚀 Architectures Evaluated
-- **VGG:** Standard deep convolutional configuration.
-- **ResNet:** CNN utilizing residual skip connections.
-- **ConvNeXT:** Modernized CNN incorporating design cues from vision transformers.
-- **Vision Transformer (ViT):** Architecture based fundamentally on global self-attention.
+It evaluates how models handle synthetic corruptions (like Gaussian Noise, Blur, etc.), tests how validation setup impacts real-world robustness, and analyzes feature perturbation directly inside network layers.
 
-## 📊 Datasets
-- CIFAR-10
-- Fashion-MNIST (F-MNIST)
-- ImageNet-100
-
-## 🔬 Key Experiments
-1. **Architectural Baselines & OOD Resilience:** Evaluated baseline architectures against OOD synthetic data using structural corruptions. 
-2. **Validation Protocol Optimization:** Assessed a Multi-Layer Perceptron (MLP) under different validation scenarios (Clean vs. Gaussian Noise) to see how synthetic regularization softens over-constrained geometries.
-3. **Decision Boundary & Topographical Mapping:** Utilized Inverse PCA and t-SNE projections to visualize topological structures and latent class separation.
-4. **Internal Feature Perturbation:** Injected Gaussian noise directly into early, middle, and late network layers during inference to observe structural resilience.
-
-## 📈 Key Findings
-- **ResNet Memorization vs Transformer Dominance:** While ResNet achieves rapid loss reduction, its local feature maps dissolve under OOD noise. Conversely, ViTs utilize multi-headed self-attention to calculate macro relationships, exhibiting massive geometric resistance.
-- **Validation Regularization:** Models trained against corrupted validation sets synthetically relax sharp decision boundaries, operating as an organic buffer against OOD spatial deformations.
-- **Layer Sensitivity:** Early-stage initial matrices are critical bottlenecks; early disruption destroys downstream capabilities. However, deep layer regularization (late-stage noise) behaves similarly to pseudo-dropout, marginally protecting generalization metrics.
+## 📊 Key Findings & Results
+- **ResNet Memorization vs. Overfitting:** Residual networks reduce training loss very rapidly across CIFAR-10, F-MNIST, and ImageNet-100. However, they consistently exhibited sharp overfitting on the validation set compared to modernization approaches like ConvNeXT.
+- **ViT Stability:** Vision Transformers (ViT) demonstrated remarkable training stability. Relying on global self-attention rather than local convolutions resulted in smoother learning curves without the sharp divergence symptomatic of standard CNN overfitting over early epochs.
+- **Validation Optimization (MLP):** Sweeping over random corruptions showed that standard models typically peak early when exposed to isolated corruptions, heavily decaying when generalizing to compound or structural noise.
 
 ## 📂 Project Structure
-- `models/` - Contains the implementations for baselines and MLPs.
-- `results/` - Visual assets including training curves, t-SNE maps, and decision boundaries. 
-- *Includes automation scripts allowing for fully reproducible experiments.*
 
-## 📜 Full Documentation
-For an in-depth dive into the methodology and mathematical findings:
-- [Academic Report (PDF)](report.pdf)
-- [Visual Presentation Deck](Vanshika_Visual_Presentation_Final.pptx)
+```text
+├── data_loader.py            # Custom Loaders for CIFAR10, F-MNIST, ImageNet-100 (80/20 structured split)
+├── train_baseline.py         # Standard network training scripts (VGG, ResNet, ConvNeXT, ViT)
+├── evaluate_models.py        # Validates model performance under OOD synthetic image corruptions
+├── experiment_a.py           # MLP validated against a standard clean distribution
+├── experiment_b.py           # MLP validated against focused Gaussian Noise distribution
+├── experiment_feature_perturb.py # Feature mapping robustness via intra-layer noise injection
+├── visualize_boundaries.py   # Decision boundary visualization using Inverse PCA
+├── visualize_tsne.py         # Topological feature representation maps using t-SNE
+├── main.ipynb                # End-to-end interactive exploration notebook
+├── run_all.sh                # Automation script 
+├── requirements.txt          # Python dependencies
+└── project_plan.md           # Underlying architectural methodology and phase planning
+```
+
+## 🚀 Setup Instructions
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/Vnshiee/Neural-Network-Robustness-Analysis.git
+   cd Neural-Network-Robustness-Analysis
+   ```
+
+2. **Install Dependencies:**
+   It is recommended to run this within a virtual environment.
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Data Setup:**
+   - Run the local setup or scripts available in `hf_local_downloader.py / download_imagenet.py`.
+   - Datasets will be downloaded dynamically or placed directly in a `./data` directory (ignored by git to save space).
+
+## 🏃‍♂️ How to Run
+
+You can run individual experiment loops or the baseline training script:
+```bash
+python train_baseline.py
+```
+
+To run the entire suite (designed for GPU acceleration like A100):
+```bash
+chmod +x run_all.sh
+./run_all.sh
+```
+
+For exploratory data analysis and visual results, open `main.ipynb` in Jupyter Notebook/Lab.
+
+## 📈 Visualizations
+- View model checkpoints inside the localized `checkpoints/` directory.
+- Plots mapped against training iterations are output directly to `results/plots/`.
+
+*(Note: Data, checkpoints, and plotting artifacts are excluded from this repository via `.gitignore` to maintain a lightweight footprint.)*

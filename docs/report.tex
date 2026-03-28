@@ -1,0 +1,338 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{subcaption}
+
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+\title{\textbf{Deep Learning (DSE316/616) Assignment-2} \\ \Large Analysis of Network Robustness, Validation Optimization, and Feature Perturbation}
+\author{Vanshika Gupta 23365}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduction}
+Deep learning models typically perform well on clean datasets but often struggle with out-of-distribution (OOD) shifts or corrupted images. This report details the evaluation of different neural network architectures on standard datasets (CIFAR-10, Fashion-MNIST, ImageNet-100) under varied image corruptions. We examine how introducing perturbations into the validation set or internal network layers impacts classification accuracy, decision boundaries, and topological feature representations.
+
+\section{Methodology}
+The experiments were executed using an automation script (\texttt{run\_all.sh}) on an NVIDIA A100 GPU. The methodology follows these standard phases:
+
+\begin{enumerate}
+    \item \textbf{Phase 1: Data Processing:} An 80/20 train/validation split was established using a fixed \texttt{torch.Generator} seed. This ensured that all models evaluated the exact same datasets, preventing data leakage and guaranteeing reproducible metrics.
+    \item \textbf{Phase 2: Baseline Architectures:} Four different model architectures were evaluated:
+    \begin{itemize}
+        \item \textbf{VGG}: A standard deep convolutional configuration.
+        \item \textbf{ResNet}: A CNN utilizing residual skip connections.
+        \item \textbf{ConvNeXT}: A modernized CNN incorporating design cues from vision transformers.
+        \item \textbf{Vision Transformer (ViT)}: An architecture based fundamentally on self-attention instead of convolutions.
+    \end{itemize}
+    \item \textbf{Phase 3: Validation Protocol Optimization (MLP):} A Multi-Layer Perceptron (MLP) was evaluated under different validation scenarios: a clean validation set (Exp A), a Gaussian noise-corrupted validation set (Exp B), and an optimized sweep randomizing up to 15 unique image corruptions per batch (Exp C).
+    \item \textbf{Phase 4: Visualizing Decision Boundaries:} To analyze the effects of the corrupted validation sets, Inverse Principal Component Analysis (PCA) was used to map the 2D classification decision boundaries, alongside t-SNE visualizations.
+    \item \textbf{Bonus Phase 5: Internal Feature Perturbation:} To test feature robustness, Gaussian noise was injected directly into the early, middle, and late layers of the network during inference to observe the resulting drop in accuracy.
+\end{enumerate}
+
+\newpage
+\section{Baseline Architectures and Out-of-Distribution Robustness}
+To establish a baseline, the four architectures were trained on clean data and then evaluated against out-of-distribution synthetic data using severity-3 corruptions from the \texttt{imagecorruptions} library.
+
+\subsection{Training Curves: CIFAR10}
+The following plots show the cross-entropy loss and accuracy over epoch iterations, evaluated purely on clean data for the baseline architectures:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/vgg_cifar10_training_curves.png}
+\caption{VGG Convergence on CIFAR10}
+\end{figure}
+
+\textbf{VGG Analysis:} VGG progresses steadily on CIFAR-10, reaching around 45\% validation accuracy. The loss and accuracy curves are closely coupled, suggesting strong regularization but slower feature extraction.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/resnet_cifar10_training_curves.png}
+\caption{RESNET Convergence on CIFAR10}
+\end{figure}
+
+\textbf{RESNET Analysis:} RESNET learns rapidly on CIFAR-10, achieving high training accuracy ($\sim$88\%). However, it starts to overfit near epoch 5 as validation loss diverges and accuracy plateaus at 75\%.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/convnext_cifar10_training_curves.png}
+\caption{CONVNEXT Convergence on CIFAR10}
+\end{figure}
+
+\textbf{CONVNEXT Analysis:} CONVNEXT on CIFAR-10 shows good generalization with aligned training and validation curves. It reaches roughly 68\% validation accuracy by epoch 7 without evident overfitting.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/vit_cifar10_training_curves.png}
+\caption{VIT Convergence on CIFAR10}
+\end{figure}
+
+\textbf{VIT Analysis:} ViT establishes a consistent learning pattern on CIFAR-10, with train and validation curves tracking closely. While its accuracy is around 36\% over these few epochs, it successfully avoids overfitting.
+
+\subsection{Training Curves: FMNIST}
+The following plots show the cross-entropy loss and accuracy over epoch iterations, evaluated purely on clean data for the baseline architectures:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/vgg_fmnist_training_curves.png}
+\caption{VGG Convergence on FMNIST}
+\end{figure}
+
+\textbf{VGG Analysis:} VGG shows strong convergence on F-MNIST ($\sim$88\% validation accuracy), with a very minimal generalization gap.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/resnet_fmnist_training_curves.png}
+\caption{RESNET Convergence on FMNIST}
+\end{figure}
+
+\textbf{RESNET Analysis:} RESNET easily fits the Fashion-MNIST training data, reaching nearly 95\%. Noticeable overfitting occurs after epoch 5, where validation loss increases despite falling training loss.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/convnext_fmnist_training_curves.png}
+\caption{CONVNEXT Convergence on FMNIST}
+\end{figure}
+
+\textbf{CONVNEXT Analysis:} CONVNEXT converges cleanly on Fashion-MNIST, approaching 90\% accuracy on both training and validation sets, indicating efficient feature mapping for the grayscale images.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/vit_fmnist_training_curves.png}
+\caption{VIT Convergence on FMNIST}
+\end{figure}
+
+\textbf{VIT Analysis:} ViT consistently separates F-MNIST classes, reaching roughly 60\% validation accuracy linearly without showing the sharp divergence typical of overfitting.
+
+\subsection{Training Curves: IMAGENET100}
+The following plots show the cross-entropy loss and accuracy over epoch iterations, evaluated purely on clean data for the baseline architectures:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/vgg_imagenet100_training_curves.png}
+\caption{VGG Convergence on IMAGENET100}
+\end{figure}
+
+\textbf{VGG Analysis:} VGG struggles with the complexity of ImageNet-100, remaining around 18\% accuracy by epoch 7, suggesting limited network capacity for this dataset.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/resnet_imagenet100_training_curves.png}
+\caption{RESNET Convergence on IMAGENET100}
+\end{figure}
+
+\textbf{RESNET Analysis:} RESNET significantly reduces training loss on ImageNet-100 ($\sim$68\% accuracy), but validation accuracy stalls at 55\%, pointing to a noticeable generalization gap.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/convnext_imagenet100_training_curves.png}
+\caption{CONVNEXT Convergence on IMAGENET100}
+\end{figure}
+
+\textbf{CONVNEXT Analysis:} On ImageNet-100, CONVNEXT learns smoothly, achieving close to 50\% validation accuracy. The curves match closely, highlighting strong inductive biases.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/vit_imagenet100_training_curves.png}
+\caption{VIT Convergence on IMAGENET100}
+\end{figure}
+
+\textbf{VIT Analysis:} ViT steadily decreases loss on ImageNet-100, increasing accuracy to nearly 28\%. The curves suggest very stable learning with no major gap between train and validation performance.
+
+
+\subsection{Baseline Evaluation Summary}
+Reviewing the baseline curves highlights a few key observations:
+\begin{itemize}
+    \item \textbf{ResNet Memorization:} Across datasets, ResNet achieves the highest training accuracy and reduces training loss rapidly, but often suffers from noticeable overfitting compared to other models. This indicates that while residual connections help mapping, they can lead to poor out-of-distribution performance if not properly regularized.
+    \item \textbf{ViT Stability:} The Vision Transformer models consistently avoid sharp overfitting curves. By relying on global multi-head attention rather than local convolutions, ViT maintains stable generalization, although it requires longer training iterations to match the peak accuracy of CNNs.
+\end{itemize}
+
+\newpage
+\section{Validation Set Corruption and Optimization}
+To further test model robustness, a Multi-Layer Perceptron (MLP) was evaluated strictly by modifying the validation sets used for checkpoint selection.
+
+\subsection{MLP Validations: CIFAR10}
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{results/plots/mlp_exp_a_cifar10_curves.png}
+        \caption{Exp A (Clean Val Checkpoint)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{results/plots/mlp_exp_b_cifar10_gaussian_noise_curves.png}
+        \caption{Exp B (Corrupted Checkpoint)}
+    \end{subfigure}
+    \caption{Comparative curves capturing Clean vs Corrupt validation on CIFAR10.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/plots/optimize_corruptions_cifar10.png}
+\caption{Optimization peak testing $1 - 15$ unique corruptions on CIFAR10}
+\end{figure}
+
+\textbf{MLP \& Optimization Analysis (CIFAR10):} For CIFAR-10, both Exp A (Clean) and Exp B (Gaussian Noise) maintain similar learning trajectories, reaching around 53\% validation accuracy. In the Phase 3C optimization sweep over 1-15 corruptions, the model peaks early at 1 unique corruption ($\sim$48.3\%), after which performance steadily decays against structural noise.
+
+\subsection{MLP Validations: FMNIST}
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{results/plots/mlp_exp_a_fmnist_curves.png}
+        \caption{Exp A (Clean Val Checkpoint)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{results/plots/mlp_exp_b_fmnist_gaussian_noise_curves.png}
+        \caption{Exp B (Corrupted Checkpoint)}
+    \end{subfigure}
+    \caption{Comparative curves capturing Clean vs Corrupt validation on FMNIST.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/plots/optimize_corruptions_fmnist.png}
+\caption{Optimization peak testing $1 - 15$ unique corruptions on FMNIST}
+\end{figure}
+
+\textbf{MLP \& Optimization Analysis (FMNIST):} On Fashion-MNIST, Exp A and Exp B learning curves are closely tied, plateauing near 88\%. The optimization sweep peaks much later at 10 unique corruptions ($\sim$72.5\%), showing that the grayscale shape representations of F-MNIST benefit heavily from diverse noise regularization before capacity limits are hit.
+
+\subsection{MLP Validations: IMAGENET100}
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{results/plots/mlp_exp_a_imagenet100_curves.png}
+        \caption{Exp A (Clean Val Checkpoint)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{results/plots/mlp_exp_b_imagenet100_gaussian_noise_curves.png}
+        \caption{Exp B (Corrupted Checkpoint)}
+    \end{subfigure}
+    \caption{Comparative curves capturing Clean vs Corrupt validation on IMAGENET100.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/plots/optimize_corruptions_imagenet100.png}
+\caption{Optimization peak testing $1 - 15$ unique corruptions on IMAGENET100}
+\end{figure}
+
+\textbf{MLP \& Optimization Analysis (IMAGENET100):} For ImageNet-100, the MLP plateaus at around 16.5\% accuracy. The Phase 3C optimization contour finds an optimal regularization trade-off at exactly 5 unique corruptions ($\sim$14.25\%). Enforcing more corruptions overwhelms the MLP's representational capacity and degrades performance.
+
+
+\subsection{Optimization Mechanics}
+The corruption sweeps reveal that ideal robustness depends heavily on dataset complexity. Dense RGB datasets (CIFAR-10) peak very early (1 corruption), whereas simpler spatial datasets (Fashion-MNIST) or large-scale hierarchies (ImageNet-100) benefit from significantly broader noise regularization (10 and 5 corruptions, respectively) before the network's capacity is overwhelmed.
+
+\newpage
+\section{Decision Boundaries and Internal Feature Maps}
+To explore structural differences visually, Inverse PCA and t-SNE projections were established to map decision boundaries and clustering variations between the clean and robust MLP validations.
+
+\subsection{Decision Boundary Mapping: CIFAR10}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{results/plots/decision_boundary_cifar10.png}
+\caption{Inverse PCA mapping illustrating 2D decision boundary geometries over CIFAR10}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{results/plots/tsne_features_cifar10.png}
+\caption{t-SNE distributions visualizing latent class separation preceding final classification on CIFAR10.}
+\end{figure}
+
+\textbf{CIFAR10 Mapping Analysis:} The decision boundary mapping for CIFAR-10 shows significant overlap among classes. Compared to the clean validation model (Model A), the corrupted boundary model (Model B) has slightly smoother decision regions, which aides in generalization. Additionally, the t-SNE map indicates that while features are entangled, the corrupted validation helps cluster some classes more tightly, improving robustness.
+
+\subsection{Decision Boundary Mapping: FMNIST}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{results/plots/decision_boundary_fmnist.png}
+\caption{Inverse PCA mapping illustrating 2D decision boundary geometries over FMNIST}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{results/plots/tsne_features_fmnist.png}
+\caption{t-SNE distributions visualizing latent class separation preceding final classification on FMNIST.}
+\end{figure}
+
+\textbf{FMNIST Mapping Analysis:} For Fashion-MNIST, the PCA projection shows clear separation. The corrupted validation model (Model B) relaxes the rigid decision boundaries of Model A, allowing the model to better handle distorted images. This is supported by the t-SNE plots, where F-MNIST clusters are well-separated; the corrupted model simply broadens the variance within clusters to account for noise.
+
+\subsection{Decision Boundary Mapping: IMAGENET100}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{results/plots/decision_boundary_imagenet100.png}
+\caption{Inverse PCA mapping illustrating 2D decision boundary geometries over IMAGENET100}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{results/plots/tsne_features_imagenet100.png}
+\caption{t-SNE distributions visualizing latent class separation preceding final classification on IMAGENET100.}
+\end{figure}
+
+\textbf{IMAGENET100 Mapping Analysis:} Given the high dimensionality of ImageNet-100, the 2D limit creates a dense cluster. However, Model B (corrupted validation) shows expanded decision zones compared to Model A, offering a better buffer against incoming noise. The t-SNE visualization reflects this as a large point cloud where the corrupted model spreads class representations slightly to absorb variations.
+
+
+\subsection{Overall Topographical Insights}
+Reviewing the boundary plots reveals clear structural differences:
+\begin{itemize}
+    \item \textbf{Clean Model Constraints:} The natively trained network outlines intricate and sharp decision boundaries, which fit clean data perfectly but become fragile when encountering OOD noise or spatial shifts.
+    \item \textbf{Corrupted Model Manifolds:} Using a corrupted validation set inherently softens and expands these boundaries. This synthetic regularization ensures that slightly displaced test samples are safely absorbed into the correct classification zones.
+\end{itemize}
+
+\newpage
+\section{Bonus Phase 5: Internal Layer Interventions}
+Previous phases tested external modifications on the datasets. Phase 5 evaluates structural robustness by dynamically injecting Gaussian noise directly into the early, middle, and late tensor layers of the model.
+
+\subsection{Internal Perturbations: CIFAR10}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/feature_perturbation_cifar10_bar.png}
+\caption{Performance drop after injecting structural noise at early, middle, and late layers over CIFAR10}
+\end{figure}
+
+\textbf{CIFAR10 Feature Perturbation Analysis:} On CIFAR-10, feature perturbation is relatively stable. Injecting noise in the early and middle stages slightly lowers performance ($\sim$52\%), but late-stage perturbations hardly impact the accuracy, implying the final layers are structurally resilient.
+
+\subsection{Internal Perturbations: FMNIST}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/feature_perturbation_fmnist_bar.png}
+\caption{Performance drop after injecting structural noise at early, middle, and late layers over FMNIST}
+\end{figure}
+
+\textbf{FMNIST Feature Perturbation Analysis:} For Fashion-MNIST, applying noise across all stages noticeably drops the accuracy from 88\% to 82\%. However, isolated perturbations in the late stages do not strongly hurt performance, suggesting early feature extraction is the main vulnerability.
+
+\subsection{Internal Perturbations: IMAGENET100}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{results/plots/feature_perturbation_imagenet100_bar.png}
+\caption{Performance drop after injecting structural noise at early, middle, and late layers over IMAGENET100}
+\end{figure}
+
+\textbf{IMAGENET100 Feature Perturbation Analysis:} On ImageNet-100 (where baseline performance is $\sim$15\%), applying noise across all layers drops accuracy further. However, localized noise, such as mid-stage perturbations, appears to slightly regularize the network and marginally maintain or boost performance.
+
+
+\subsection{Perturbation Takeaways}
+Injecting internal layer noise exposes varying sensitivities within the network hierarchy:
+\begin{enumerate}
+    \item \textbf{Early-Stage Sensitivity:} Disrupting the initial layers limits the network's ability to extract basic features, leading to severe cascading failures in downstream representations.
+    \item \textbf{Late-Stage Robustness:} Conversely, inserting perturbations in the final layers has a significantly lower impact on overarching performance. In some instances, isolated mid/late-stage noise even acts similarly to dropout, preserving or slightly boosting baseline test accuracy.
+\end{enumerate}
+
+\section{Conclusion}
+This report comprehensively evaluated the behavior of standard network architectures and MLPs under varied structural corruptions. Models like ViT displayed exceptional inherent robustness due to global feature attention, whereas deep CNNs like ResNet experienced rapid overfitting and vulnerability to distribution shifts. By utilizing corrupted validations and observing visual topologies via PCA and t-SNE, we demonstrated that mapping decision boundaries on noisy configurations properly relaxes over-constrained geometries. This results in stable, practical pipelines that better resist real-world degradations compared to networks optimizing strictly for pristine benchmarks.
+
+\end{document}
